@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Vlatko Kosturjak"]
   spec.email         = ["vlatko.kosturjak@gmail.com"]
   spec.homepage	     = 'https://github.com/kost/poloapi-ruby'
-  spec.description   = %q{Provides a wrapper for poloniex.com api}
+  spec.description   = %q{Provides a wrapper for poloniex.com api. It allows to programmaticaly trade cryptocurrencies.}
   spec.summary       = %q{Provides a wrapper for poloniex.com api}
   spec.license       = "MIT"
 
