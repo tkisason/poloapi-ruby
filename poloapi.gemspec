@@ -1,16 +1,16 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'poloniex/version'
+require 'poloapi/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "poloapi"
   spec.version       = Poloapi::VERSION
   spec.authors       = ["Vlatko Kosturjak"]
   spec.email         = ["vlatko.kosturjak@gmail.com"]
+  spec.homepage	     = 'https://github.com/kost/poloapi-ruby'
   spec.description   = %q{Provides a wrapper for poloniex.com api}
   spec.summary       = %q{Provides a wrapper for poloniex.com api}
-  spec.homepage      = ""
   spec.license       = "MIT"
 
   spec.files         = `git ls-files`.split($/)
