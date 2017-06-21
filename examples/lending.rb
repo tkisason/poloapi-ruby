@@ -10,12 +10,15 @@ require 'bigdecimal'
 
 require 'pp'
 
+# require 'pry'
+
 
 $PRGNAME="lending"
 $options = {}
 $options['loglevel'] = 'WARN'
-# $options['loglevel'] = "INFO"
 $options['logname'] = nil
+$options['dryrun'] = false
+$options['singleloop'] = false
 
 # $options['maxordertime']=300
 $options['maxordertime']=1500
@@ -29,8 +32,10 @@ $options['loanmin'] = 0.0001 # global loan minimum rate
 $options['loanmincur']= {'BTC' => 0.0003000, 'ETH' => 0.0002 } # minimum rate per currency
 $options['loanmaxorderamount'] = '1.32' # in front of which max order to put
 $options['loanmaxorderamountcur'] = {'BTC' => 1.32, 'ETH' => 10.1 }
-$options['loanmaxordercount'] = '25' # when this number of orders reach, don't create new orders
-$options['loanmaxordercountcur'] = {'BTC' => 25, 'ETH' => 30 } # when this number of orders reach, don't create new orders
+$options['loanmaxordersum'] = '3'
+$options['loanmaxordersumcur'] = {'BTC' => 3.00, 'ETH' => 10.0 }
+
+$options['loanorderdeduct'] = '0.000001' # how much to deduct from wall order (to execute order before order wall)
 
 # helpful class for logger
 class MultiDelegator
@@ -84,6 +89,17 @@ OptionParser.new do |opts|
 
 	opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
 		$options['verbose'] = v
+		$log.level = Logger::INFO
+	end
+
+	opts.on("-1", "--[no-]singleloop", "Perform single loop") do |v|
+		$options['singleloop'] = v
+	end
+
+	opts.on("-r", "--[no-]report", "Report only in single loop") do |v|
+		$options['report'] = v
+		$options['singleloop'] = v
+		$options['dryrun'] = v
 		$log.level = Logger::INFO
 	end
 
@@ -147,11 +163,15 @@ def getBestPossibleLoanOrder(curid)
 		numloanoffers = loanorders["offers"].count
 		exorder = loanorders["offers"].first 
 		bestorder = loanorders["offers"].last
+		sumamount = BigDecimal.new('0.0')
+		maxsumamount = BigDecimal.new($options['loanmaxordersum'])
 		loanorders["offers"].each_with_index do |offer,offid|
-			if offer["amount"] > $options['loanmaxorderamount'] then
-				bestorder = offer
+			sumamount=sumamount+BigDecimal.new(offer['amount'])
+			if offer["amount"] > $options['loanmaxorderamount'] or (not $options['loanmaxordersum'].nil? and sumamount > maxsumamount) then
+				bestorder = offer.dup
 				# bestorder['rate'] = (bestorder['rate'].to_f - 0.00000001).to_s
-				bestorder['rate'] = (BigDecimal.new(bestorder['rate']) - BigDecimal.new('0.00000001')).to_s('F')
+				bestrate=(BigDecimal.new(bestorder['rate'])) - (BigDecimal.new($options['loanorderdeduct']))
+				bestorder['rate'] = bestrate.to_s('F')
 				$log.info("Looking best possible place, With #{numloanoffers} order(s), best possible order is (skipped #{offid}): #{bestorder['rate']}, higher is #{offer['rate']} with amount #{offer['amount']}")
 				break
 			else
@@ -175,10 +195,7 @@ def getMinLoanOrder(curid,options)
 	return minorder
 end
 
-while true
-$log.info("Starting loop")
-
-begin
+def mainLoop()
 myofferloans=JSON.parse(Poloapi.post('returnOpenLoanOffers'))
 unless myofferloans.nil?
 	myofferloans.each do |cur,items|
@@ -263,10 +280,13 @@ unless mybalances.nil? or mybalances.empty?
 					orderstate="Minimum reached: #{minorder}."
 					loanorder=minorder
 				end
-				# TODO if $options['loanmaxordercount']
-				$log.warn("#{orderstate} Creating lend offer for #{cur[0]} #{cur[1]} with rate #{loanorder}")
-				loanorders=JSON.parse(Poloapi.post('createLoanOffer', {:currency => cur[0], :amount => cur[1], :duration => $options['loanduration'], :autoRenew => $options['loanautorenew'], :lendingRate => loanorder}))
-				$log.info(loanorders.to_s)
+				if $options['dryrun'] then
+					$log.warn("Dry run - #{orderstate} Not creating lend offer for #{cur[0]} #{cur[1]} with rate #{loanorder}")
+				else
+					$log.warn("#{orderstate} Creating lend offer for #{cur[0]} #{cur[1]} with rate #{loanorder}")
+					loanorders=JSON.parse(Poloapi.post('createLoanOffer', {:currency => cur[0], :amount => cur[1], :duration => $options['loanduration'], :autoRenew => $options['loanautorenew'], :lendingRate => loanorder}))
+					$log.info(loanorders.to_s)
+				end
 			end
 		end
 	else
@@ -317,13 +337,19 @@ unless myactloans["provided"].nil?
 	end
 end
 
-rescue StandardError => e
-	$log.warn("Error #{$!}: #{e.backtrace}")
+end # mainLoop()
+
+if $options['singleloop'] then
+	mainLoop()
+else
+	while true
+		$log.info("Starting loop")
+		begin
+			mainLoop()
+		rescue StandardError => e
+			$log.warn("Error #{$!}: #{e.backtrace}")
+		end
+		$log.info("Finishing up and sleeping for #{$options['sleeploop']}")
+		sleep $options['sleeploop']
+	end
 end
-
-$log.info("Finishing up and sleeping for #{$options['sleeploop']}")
-sleep $options['sleeploop']
-end
-
-
-
