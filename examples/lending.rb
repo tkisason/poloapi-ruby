@@ -4,7 +4,7 @@
 require 'bundler/setup'
 require 'poloapi'
 require 'logger'
-require 'yaml'
+#require 'yaml'
 require 'optparse'
 require 'bigdecimal'
 
@@ -58,13 +58,13 @@ class MultiDelegator
 end
 
 #begin
-	optyaml = YAML::load_file(ENV['HOME']+'/.pololending')
+#	optyaml = YAML::load_file(ENV['HOME']+'/.pololending')
 # rescue # Errno::ENOENT
 #end
 
-if optyaml != nil then
-	$options.merge!(optyaml)
-end
+#if optyaml != nil then
+#	$options.merge!(optyaml)
+#end
 
 # File.open(ENV['HOME']+'/.pololending-ex', 'w') {|f| f.write $options.to_yaml }
 
